@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Twitch Scrolling Credits Overlay</title>
+<title>Twitch Emote Counter for Streamer.bot</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Pirata+One&family=Cinzel:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
@@ -314,8 +314,8 @@ footer a:hover { color: var(--gold); }
 <body>
 
 <header class="hero">
-  <div class="hero-title">Stream Credits</div>
-  <p class="hero-sub">Scrolling end-of-stream credits overlay for OBS &amp; Streamer.bot</p>
+  <div class="hero-title">Emote Counter</div>
+  <p class="hero-sub">Streamer.bot actions to track &amp; display top channel emotes</p>
   <!-- TODO: replace # with your GitHub repo URL -->
   <a class="hero-btn" href="#">View on GitHub</a>
 </header>
@@ -327,7 +327,10 @@ footer a:hover { color: var(--gold); }
     <p class="section-title">Overview</p>
     <h2 class="section-heading">How it works</h2>
     <p style="color:var(--text-muted); margin-bottom: 8px;">
-      Three pieces work together. A Streamer.bot action counts emote usage across the stream. When you switch to your ending scene, a second action snapshots the top emotes to a JSON file. The OBS browser source then connects to Streamer.bot, fetches the viewer data and the emote file, and plays the scrolling credits.
+      Two Streamer.bot C# actions do the work. The first counts channel emote usage on every chat message. The second fires when your ending scene activates and snapshots the top emotes — with image URLs — to a <code>emotes.json</code> file that any overlay can read.
+    </p>
+    <p style="color:var(--text-muted); margin-bottom: 24px;">
+      The included <code>Scrolling Credits for SB.html</code> is an <strong style="color:var(--text)">example integration</strong> showing how to consume that file inside an OBS browser source. It is not the main product — you can wire the JSON output into any overlay you already use.
     </p>
 
     <div class="flow">
@@ -341,9 +344,9 @@ footer a:hover { color: var(--gold); }
         <div class="flow-step-desc">Action 2 writes top 5 emotes to <code>emotes.json</code></div>
       </div>
       <div class="flow-arrow">→</div>
-      <div class="flow-step">
-        <div class="flow-step-label">OBS browser source</div>
-        <div class="flow-step-desc">Overlay fetches credits + emotes, animates scroll</div>
+      <div class="flow-step" style="border-style: dashed; opacity: 0.7;">
+        <div class="flow-step-label">Your overlay</div>
+        <div class="flow-step-desc">Fetch <code>emotes.json</code> and display however you like</div>
       </div>
     </div>
   </section>
@@ -358,33 +361,45 @@ footer a:hover { color: var(--gold); }
       <div class="step">
         <div class="step-num"></div>
         <div class="step-content">
-          <h3>Add the OBS browser source</h3>
-          <p>Add <code>Scrolling Credits for SB.html</code> as a browser source in OBS. Set the resolution to match your canvas (e.g. 1920×1080) and enable <strong>Refresh browser when scene becomes active</strong>.</p>
-          <p>Place it on your ending screen scene. The background is transparent — it layers over your stream.</p>
-        </div>
-      </div>
-
-      <div class="step">
-        <div class="step-num"></div>
-        <div class="step-content">
           <h3>Streamer.bot — Action 1: Chat emote counter</h3>
           <p>
             <span class="badge">Trigger</span> Twitch → Chat Message (every message)
           </p>
-          <p>Create a new action, add a <strong>Execute C# Code</strong> sub-action, and paste the contents of <code>Action1_Chat_emote_counter.cs</code>. This runs on every chat message and tallies any emote starting with <code>monkdr</code>, storing counts and image URLs in the global variable <code>emoteUsageCounts</code>.</p>
+          <p>Create a new action, add an <strong>Execute C# Code</strong> sub-action, and paste the contents of <code>Action1_Chat_emote_counter.cs</code>. This runs on every chat message and tallies any emote starting with <code>monkdr</code> (case-insensitive), storing counts and image URLs in the persisted global variable <code>emoteUsageCounts</code>.</p>
         </div>
       </div>
 
       <div class="step">
         <div class="step-num"></div>
         <div class="step-content">
-          <h3>Streamer.bot — Action 2: Add emote credit</h3>
+          <h3>Streamer.bot — Action 2: Write emotes to file</h3>
           <p>
             <span class="badge">Trigger</span> OBS → Scene Changed → your ending scene name
           </p>
-          <p>Create a second action with <strong>Execute C# Code</strong> from <code>Action2_Add_emote_credit.cs</code>. Before saving, update the file path to point to the folder where your HTML overlay lives:</p>
+          <p>Create a second action with <strong>Execute C# Code</strong> from <code>Action2_Add_emote_credit.cs</code>. Update the output path to a folder your overlay can reach:</p>
           <pre><code>string path = @"E:\stream\Credits - Simple Scrolling\emotes.json";</code></pre>
-          <p>Optionally add a <strong>Core → Sleep (1500 ms)</strong> sub-action <em>after</em> the C# step (see pitfalls below for why order matters).</p>
+          <p>On trigger, it reads <code>emoteUsageCounts</code>, sorts by usage, and writes the top 5 to <code>emotes.json</code> as an array of <code>{ Name, Count, Url }</code> objects. It then resets the global for the next stream.</p>
+          <p>Optionally add a <strong>Core → Sleep (1500 ms)</strong> sub-action <em>after</em> the C# step — see the pitfall below about order.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <p style="color:var(--text-muted); font-size:14px; margin-bottom: 28px;">That's all that's required. The two actions are self-contained — no overlay dependency.</p>
+
+    <h3 style="font-family:'Cinzel',serif; font-size:17px; color:#fff; margin-bottom:16px;">Using the example overlay</h3>
+    <p style="color:var(--text-muted); margin-bottom:20px;">
+      <code>Scrolling Credits for SB.html</code> is a reference implementation showing one way to consume <code>emotes.json</code>. If you want to use it:
+    </p>
+
+    <div class="steps">
+
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
+          <h3>Add the OBS browser source</h3>
+          <p>Add <code>Scrolling Credits for SB.html</code> as a browser source. Set the resolution to match your canvas (e.g. 1920×1080), enable <strong>Refresh browser when scene becomes active</strong>, and place it on your ending screen scene. The background is transparent.</p>
+          <p>Make sure the output path in Action 2 points to the <em>same folder</em> as the HTML file so the relative <code>./emotes.json</code> fetch resolves correctly.</p>
         </div>
       </div>
 
@@ -392,7 +407,7 @@ footer a:hover { color: var(--gold); }
         <div class="step-num"></div>
         <div class="step-content">
           <h3>Confirm the Streamer.bot WebSocket</h3>
-          <p>The overlay connects to <code>ws://localhost:8080</code> on load. Make sure Streamer.bot's WebSocket server is running — check <strong>Settings → WebSocket Server</strong> and confirm it is enabled on port 8080.</p>
+          <p>The example overlay connects to <code>ws://localhost:8080</code> to pull the full credits data (followers, subs, etc.). Check <strong>Settings → WebSocket Server</strong> in Streamer.bot and confirm it is enabled on port 8080.</p>
         </div>
       </div>
 
@@ -413,7 +428,7 @@ footer a:hover { color: var(--gold); }
         <div class="tag-correct">[Execute C#] → [Sleep 1500ms]</div>
         <div class="tag-wrong">[Sleep 1500ms] → [Execute C#]</div>
       </div>
-      <p style="margin-top:10px;">The HTML overlay already waits 2000 ms before fetching <code>emotes.json</code> as a safety margin — the C# write just has to happen within that window.</p>
+      <p style="margin-top:10px;">The example overlay already waits 2000 ms before fetching <code>emotes.json</code> as a safety margin — the C# write just has to happen within that window. If you use your own overlay, build in a similar delay after the scene change.</p>
     </div>
 
     <div class="pitfall">
@@ -440,9 +455,9 @@ CPH.SetGlobalVar("emoteUsageCounts", json, false); // ✗ lost on restart</code>
     </div>
 
     <div class="pitfall">
-      <h3>Opening the HTML as file:// breaks emotes.json fetch</h3>
+      <h3>Opening the example HTML as file:// breaks the emotes.json fetch</h3>
       <p>
-        Chrome blocks <code>fetch('file://')</code> from a <code>file://</code> page with a CORS error. The overlay uses a relative path (<code>./emotes.json</code>) which works fine inside OBS's browser source. If you open the HTML directly in Chrome for testing, the emotes section will silently fail — this is expected and only affects local dev.
+        This only affects the example overlay, not the C# actions. Chrome blocks <code>fetch('file://')</code> from a <code>file://</code> page with a CORS error. The overlay uses a relative path (<code>./emotes.json</code>) which works fine inside OBS's browser source. If you open the HTML directly in Chrome for testing, the emotes section will silently fail — this is expected and only affects local dev.
       </p>
     </div>
 
