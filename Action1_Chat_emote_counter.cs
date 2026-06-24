@@ -9,6 +9,12 @@ using Newtonsoft.Json;
 
 public class CPHInline
 {
+    private class EmoteEntry
+    {
+        public int Count { get; set; }
+        public string Url { get; set; }
+    }
+
     public bool Execute()
     {
         CPH.TryGetArg("emoteCount", out int emoteCount);
@@ -21,18 +27,8 @@ public class CPHInline
         if (emoteList == null || emoteList.Count == 0) return true;
 
         string json = CPH.GetGlobalVar<string>("emoteUsageCounts", true) ?? "{}";
-        var counts = JsonConvert.DeserializeObject<Dictionary<string, int>>(json)
-                     ?? new Dictionary<string, int>();
-
-        // Dump emote object properties to log for inspection — remove once confirmed
-        if (emoteList.Count > 0 && emoteList[0] != null)
-        {
-            var props = emoteList[0].GetType().GetProperties();
-            var sb = new System.Text.StringBuilder();
-            foreach (var p in props)
-                sb.Append(p.Name + "=" + p.GetValue(emoteList[0]) + " | ");
-            CPH.LogInfo("[EmoteDebug] " + sb.ToString());
-        }
+        var counts = JsonConvert.DeserializeObject<Dictionary<string, EmoteEntry>>(json)
+                     ?? new Dictionary<string, EmoteEntry>();
 
         foreach (var emote in emoteList)
         {
@@ -48,8 +44,19 @@ public class CPHInline
                 }
             }
             if (string.IsNullOrEmpty(emoteName)) continue;
-            if (!counts.ContainsKey(emoteName)) counts[emoteName] = 0;
-            counts[emoteName]++;
+            if (!emoteName.StartsWith("monkdr", StringComparison.OrdinalIgnoreCase)) continue;
+
+            string imageUrl = null;
+            PropertyInfo urlProp = emote.GetType().GetProperty("ImageUrl");
+            if (urlProp != null)
+                imageUrl = urlProp.GetValue(emote)?.ToString();
+
+            if (!counts.ContainsKey(emoteName))
+                counts[emoteName] = new EmoteEntry { Count = 0, Url = imageUrl };
+            else if (!string.IsNullOrEmpty(imageUrl))
+                counts[emoteName].Url = imageUrl;
+
+            counts[emoteName].Count++;
         }
 
         CPH.SetGlobalVar("emoteUsageCounts", JsonConvert.SerializeObject(counts), true);

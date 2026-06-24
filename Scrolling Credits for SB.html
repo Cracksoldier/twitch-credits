@@ -61,6 +61,20 @@ body {
     0 0 6px rgba(0,0,0,1),
     0 0 12px rgba(0,0,0,1);
 }
+
+.emote-entry {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.emote-img {
+  height: 64px;
+  width: 64px;
+  image-rendering: auto;
+}
 </style>
 <script language="javascript" type="text/javascript">
 
@@ -83,7 +97,10 @@ socket.onmessage = async function (event) {
 		socket.close();
 
 		// fetch emote data written by Streamer.bot Action 2
+		// Wait 2000ms so Action 2 has time to write emotes.json before we read it.
+		// Action 2 runs after a 1500ms sleep in Streamer.bot, so this margin is needed.
 		try {
+			await new Promise(resolve => setTimeout(resolve, 2000));
 			const resp = await fetch('./emotes.json?t=' + Date.now());
 			if (resp.ok) {
 				const emotes = await resp.json();
@@ -119,7 +136,7 @@ socket.onmessage = async function (event) {
 			{ section: "top", key: "monthBits", title: "Top Bits des Monats" },
 			{ section: "top", key: "weekBits", title: "Top Bits der Woche" },
 			{ section: "top", key: "channelRewards", title: "Berries Legenden" },
-			{ section: "custom", key: "Top Emotes", title: "Top Emotes" }
+			{ section: "custom", key: "Top Emotes", title: "Top Emotes", render: entry => `<div class="emote-entry"><img src="${entry.Url}" alt="${entry.Name}" class="emote-img"><span>${entry.Count}x</span></div>` }
 		];
 
 		// Generate DOM
@@ -137,7 +154,7 @@ socket.onmessage = async function (event) {
 				if (eventData.length > 0) {
 					elements.push(`
 						<div class="title">${ header.title }</div>
-						${Object.values(eventData).map(entry => `<div class="name">${ entry }</div>`).join('')}
+						${Object.values(eventData).map(entry => header.render ? header.render(entry) : `<div class="name">${ entry }</div>`).join('')}
 					`);
 
 					// save output users by section

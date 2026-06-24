@@ -79,4 +79,13 @@ Always use a relative path (`./emotes.json`) — not an absolute `file:///` URL.
 
 Streamer.bot connects to OBS via WebSocket (`Settings → OBS WebSocket`; built into OBS Studio 28+). Actions can be triggered on scene switches via **OBS → Scene Changed**, filtered to a specific scene name.
 
-The "Add Emotes to Credits" action uses this trigger on the ending screen scene. It has a **Core → Sleep (1500 ms)** as its first sub-action to avoid a race condition where the browser source connects and fires `GetCredits` before the credits custom data has been written.
+The "Add Emotes to Credits" action uses this trigger on the ending screen scene.
+
+**Sub-action order is critical.** The C# execute sub-action must come **before** any Sleep:
+
+```
+✓ CORRECT:  [Execute C#] → [Core: Sleep 1500ms (optional)]
+✗ WRONG:    [Core: Sleep 1500ms] → [Execute C#]
+```
+
+If the Sleep comes first, the browser source refreshes and fetches `emotes.json` (which still has the previous stream's data) before the C# has a chance to write the new file. The overlay HTML includes its own 2000ms delay before the fetch to provide an additional safety margin — the C# write must still happen before that window closes.
