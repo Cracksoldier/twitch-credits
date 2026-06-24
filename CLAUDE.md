@@ -36,19 +36,58 @@ Fonts (Pirata One, Cinzel) are loaded from Google Fonts — requires internet ac
 
 ### Emote tracking
 
-The `%emotes%` trigger variable is a `List<Twitch.Common.Models.Emote>` object — not a string. Retrieving it with `TryGetArg<string>` returns the type name, not data. The correct approach is to retrieve it as `object`, cast to `System.Collections.IList`, then use reflection to read the emote name property:
+The `%emotes%` trigger variable is a `List<Twitch.Common.Models.Emote>` object — not a string. Retrieving it with `TryGetArg<string>` returns the type name, not data. The correct approach is to retrieve it as `object`, cast to `System.Collections.IList`, then use reflection to read properties:
 
 ```csharp
 CPH.TryGetArg("emotes", out object emotesObj);
 var emoteList = emotesObj as System.Collections.IList;
 foreach (var emote in emoteList)
 {
-    PropertyInfo prop = emote.GetType().GetProperty("Name"); // confirmed property name
-    string emoteName = prop?.GetValue(emote)?.ToString();
+    PropertyInfo nameProp = emote.GetType().GetProperty("Name"); // confirmed
+    string emoteName = nameProp?.GetValue(emote)?.ToString();
+    PropertyInfo urlProp = emote.GetType().GetProperty("ImageUrl"); // confirmed
+    string imageUrl = urlProp?.GetValue(emote)?.ToString();
 }
 ```
 
+Confirmed emote properties (from `[EmoteDebug]` log): `Id`, `Type`, `Name`, `StartIndex`, `EndIndex`, `ImageUrl`, `ZeroWidth`.
+
 Each item in the list is one emote occurrence, so four `LUL` in a message = four list entries.
+
+Only emotes whose `Name` starts with `monkdr` (case-insensitive) are counted. Others are skipped.
+
+#### emoteUsageCounts global variable format
+
+Action 1 stores data as a JSON object keyed by emote name, with each value being an `EmoteEntry`:
+
+```json
+{
+  "monkdrParty": { "Count": 5, "Url": "https://static-cdn.jtvnw.net/emoticons/v2/.../default/dark/2.0" },
+  "monkdrHers":  { "Count": 3, "Url": "https://static-cdn.jtvnw.net/emoticons/v2/.../default/dark/2.0" }
+}
+```
+
+Action 2 reads this, sorts by count descending, and writes the top 5 to `emotes.json` as an array of `EmoteOutput` objects:
+
+```json
+[
+  { "Name": "monkdrParty", "Count": 5, "Url": "https://..." },
+  { "Name": "monkdrHers",  "Count": 3, "Url": "https://..." }
+]
+```
+
+If the format of `emoteUsageCounts` ever changes (e.g. reverting to the old `{"name": int}` shape), clear the global in the Streamer.bot Globals UI before the next stream to avoid a deserialization mismatch.
+
+#### Overlay rendering
+
+The overlay fetches `emotes.json` and injects it into the credits as the `custom → Top Emotes` section. Each entry renders as an inline emote image (64×64 px) next to the count, using a `render` function on the header config:
+
+```js
+{ section: "custom", key: "Top Emotes", title: "Top Emotes",
+  render: entry => `<div class="emote-entry"><img src="${entry.Url}" class="emote-img"><span>${entry.Count}x</span></div>` }
+```
+
+All other sections use the default `<div class="name">` template.
 
 ### Global variables
 
@@ -63,9 +102,9 @@ Always use `CPH.TryGetArg()` — never access the `args` dictionary directly. Di
 `System.Linq` is not available in Streamer.bot 1.0.4's C# inline environment — `using System.Linq;` causes a compile error and the action silently fails to run. Use `List<T>.Sort()` with a comparison delegate instead of `OrderByDescending`, and avoid all other LINQ extension methods (`Select`, `Where`, `Take`, etc.).
 
 ```csharp
-// Instead of .OrderByDescending(kv => kv.Value).Take(5):
-var entries = new List<KeyValuePair<string, int>>(counts);
-entries.Sort((a, b) => b.Value.CompareTo(a.Value));
+// Instead of .OrderByDescending(kv => kv.Value.Count).Take(5):
+var entries = new List<KeyValuePair<string, EmoteEntry>>(counts);
+entries.Sort((a, b) => b.Value.Count.CompareTo(a.Value.Count));
 for (int i = 0; i < entries.Count && i < 5; i++) { ... }
 ```
 
