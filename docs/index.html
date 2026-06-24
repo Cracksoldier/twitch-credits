@@ -167,6 +167,34 @@ section {
   margin-bottom: 36px;
 }
 
+.step--required {
+  background: rgba(253,180,21,0.05);
+  border: 1px solid rgba(253,180,21,0.35);
+  border-radius: 8px;
+  padding: 18px 20px 18px 16px;
+  margin-left: -16px;
+}
+
+.step--required .step-num {
+  background: var(--gold);
+  color: #000;
+}
+
+.required-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-family: 'Cinzel', serif;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: var(--gold);
+  color: #000;
+  font-weight: 700;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
 .step-num {
   counter-increment: step;
   flex-shrink: 0;
@@ -370,11 +398,11 @@ footer a:hover { color: var(--gold); }
         </div>
       </div>
 
-      <div class="step">
+      <div class="step step--required">
         <div class="step-num"></div>
         <div class="step-content">
-          <h3>Adapt the emote prefix filter</h3>
-          <p>By default Action 1 only counts emotes whose name starts with <code>monkdr</code>. Change this to match your own channel emote prefix in <code>Action1_Chat_emote_counter.cs</code>:</p>
+          <h3>Adapt the emote prefix filter <span class="required-tag">Required</span></h3>
+          <p>The filter is hardcoded to <code>monkdr</code> — nothing will be counted on your channel until you change it. Edit <code>Action1_Chat_emote_counter.cs</code> and replace the prefix with your own:</p>
           <pre><code>if (!emoteName.StartsWith("monkdr", StringComparison.OrdinalIgnoreCase)) continue;</code></pre>
           <p>Replace <code>"monkdr"</code> with your prefix, e.g. <code>"pb"</code> or <code>"myemote"</code>. The check is case-insensitive, so <code>"PB"</code>, <code>"Pb"</code> and <code>"pb"</code> all match. To track <em>all</em> emotes regardless of name, remove the line entirely.</p>
         </div>
