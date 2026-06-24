@@ -372,6 +372,16 @@ footer a:hover { color: var(--gold); }
       <div class="step">
         <div class="step-num"></div>
         <div class="step-content">
+          <h3>Adapt the emote prefix filter</h3>
+          <p>By default Action 1 only counts emotes whose name starts with <code>monkdr</code>. Change this to match your own channel emote prefix in <code>Action1_Chat_emote_counter.cs</code>:</p>
+          <pre><code>if (!emoteName.StartsWith("monkdr", StringComparison.OrdinalIgnoreCase)) continue;</code></pre>
+          <p>Replace <code>"monkdr"</code> with your prefix, e.g. <code>"pb"</code> or <code>"myemote"</code>. The check is case-insensitive, so <code>"PB"</code>, <code>"Pb"</code> and <code>"pb"</code> all match. To track <em>all</em> emotes regardless of name, remove the line entirely.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num"></div>
+        <div class="step-content">
           <h3>Streamer.bot — Action 2: Write emotes to file</h3>
           <p>
             <span class="badge">Trigger</span> OBS → Scene Changed → your ending scene name
